@@ -1,9 +1,8 @@
 [build]
 builder = "NIXPACKS"
 buildCommand = """
-apt-get update && apt-get install -y libgl1 && \
 pip install -r requirements.txt
 """
 
-[service]
-startCommand = "gunicorn split_pdf:app"
+[deploy]
+startCommand = "gunicorn tach:app"
