@@ -40,7 +40,7 @@ def pdf_to_images():
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             for page_num in range(len(doc)):
-                #page = doc[page_num]
+                page = doc[page_num]
                 page.set_cropbox(page.mediabox)
                 pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
 
