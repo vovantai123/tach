@@ -8,7 +8,6 @@ import re
 app = Flask(__name__)
 
 def get_direct_drive_link(url: str):
-    """Chuyển link Google Drive sang link tải trực tiếp"""
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
     if not match:
         return None
@@ -27,14 +26,12 @@ def pdf_to_images():
         if not direct_link:
             return jsonify({"error": "URL Google Drive không hợp lệ"}), 400
 
-        # 🟢 Tải file PDF từ Google Drive
+        # 🟢 Tải PDF
         response = requests.get(direct_link)
         if response.status_code != 200:
             return jsonify({"error": "Không thể tải file PDF"}), 400
 
         pdf_bytes = io.BytesIO(response.content)
-
-        # 🟢 Mở PDF bằng PyMuPDF
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
         zip_buffer = io.BytesIO()
@@ -42,22 +39,16 @@ def pdf_to_images():
             for page_num in range(len(doc)):
                 page = doc[page_num]
 
-                # ⚡ Luôn render toàn bộ nội dung thật, không bị crop
-                page.set_cropbox(page.mediabox)
-
-                # ⚡ Lấy đúng khung MediaBox thật (tránh cắt mép dưới)
-                rect = page.mediabox
-                rect = fitz.Rect(rect.x0 - 5, rect.y0 - 5, rect.x1 + 5, rect.y1 + 5)
-
-                # ⚡ Render full trang với chất lượng cao
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False, clip=rect)
+                # ⚡ Force render toàn bộ DisplayList của trang (không giới hạn clip, crop, rect)
+                display_list = page.get_displaylist()
+                mat = fitz.Matrix(2, 2)  # ~200 DPI
+                pix = display_list.get_pixmap(matrix=mat, alpha=False)
 
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
 
         doc.close()
 
-        # 🟢 Trả về file ZIP chứa tất cả ảnh
         zip_buffer.seek(0)
         return send_file(
             zip_buffer,
@@ -70,7 +61,6 @@ def pdf_to_images():
         return jsonify({"error": str(e)}), 500
 
 
-# ✅ Cho phép gọi từ web (tránh lỗi CORS khi dùng với n8n hoặc frontend)
 @app.after_request
 def add_cors_headers(response):
     response.headers["Access-Control-Allow-Origin"] = "*"
