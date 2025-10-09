@@ -42,7 +42,7 @@ def pdf_to_images():
                 # ⚡ Force render toàn bộ DisplayList của trang (không giới hạn clip, crop, rect)
                 display_list = page.get_displaylist()
                 mat = fitz.Matrix(2, 2)  # ~200 DPI
-                pix = display_list.get_pixmap(matrix=mat, alpha=False)
+                pix = display_list.get_pixmap(matrix=mat, alpha=False, clip=None)
 
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
