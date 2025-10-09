@@ -41,11 +41,16 @@ def pdf_to_images():
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             for page_num in range(len(doc)):
                 page = doc[page_num]
+        
+                # Đảm bảo không bị crop mất phần dưới
                 page.set_cropbox(page.mediabox)
+        
+                # Render ảnh chất lượng cao (200 DPI tương đương Matrix(2,2))
                 pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-
+        
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
+
         doc.close()
 
         zip_buffer.seek(0)
