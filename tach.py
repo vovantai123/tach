@@ -27,7 +27,7 @@ def pdf_to_images():
         if not direct_link:
             return jsonify({"error": "URL Google Drive không hợp lệ"}), 400
 
-        # 🟢 Tải PDF
+        # 🟢 Tải file PDF từ Google Drive
         response = requests.get(direct_link)
         if response.status_code != 200:
             return jsonify({"error": "Không thể tải file PDF"}), 400
@@ -41,18 +41,23 @@ def pdf_to_images():
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             for page_num in range(len(doc)):
                 page = doc[page_num]
-        
-                # Đảm bảo không bị crop mất phần dưới
+
+                # ⚡ Luôn render toàn bộ nội dung thật, không bị crop
                 page.set_cropbox(page.mediabox)
-        
-                # Render ảnh chất lượng cao (200 DPI tương đương Matrix(2,2))
-                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2))
-        
+
+                # ⚡ Lấy đúng khung MediaBox thật (tránh cắt mép dưới)
+                rect = page.mediabox
+                rect = fitz.Rect(rect.x0 - 5, rect.y0 - 5, rect.x1 + 5, rect.y1 + 5)
+
+                # ⚡ Render full trang với chất lượng cao
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), alpha=False, clip=rect)
+
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
 
         doc.close()
 
+        # 🟢 Trả về file ZIP chứa tất cả ảnh
         zip_buffer.seek(0)
         return send_file(
             zip_buffer,
@@ -63,6 +68,15 @@ def pdf_to_images():
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+
+
+# ✅ Cho phép gọi từ web (tránh lỗi CORS khi dùng với n8n hoặc frontend)
+@app.after_request
+def add_cors_headers(response):
+    response.headers["Access-Control-Allow-Origin"] = "*"
+    response.headers["Access-Control-Allow-Methods"] = "POST, OPTIONS"
+    response.headers["Access-Control-Allow-Headers"] = "Content-Type"
+    return response
 
 
 if __name__ == "__main__":
