@@ -41,7 +41,7 @@ def pdf_to_images():
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             for page_num in range(len(doc)):
                 page = doc[page_num]
-                pix = page.get_pixmap(dpi=200)
+                pix = page.get_pixmap(matrix=fitz.Matrix(2, 2), clip=page.rect, alpha=False)
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
         doc.close()
