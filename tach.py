@@ -8,6 +8,7 @@ import re
 app = Flask(__name__)
 
 def get_direct_drive_link(url: str):
+    """Chuyển link Google Drive sang link tải trực tiếp"""
     match = re.search(r"/d/([a-zA-Z0-9_-]+)", url)
     if not match:
         return None
@@ -26,7 +27,7 @@ def pdf_to_images():
         if not direct_link:
             return jsonify({"error": "URL Google Drive không hợp lệ"}), 400
 
-        # 🟢 Tải PDF
+        # 🟢 Tải file PDF
         response = requests.get(direct_link)
         if response.status_code != 200:
             return jsonify({"error": "Không thể tải file PDF"}), 400
@@ -39,10 +40,13 @@ def pdf_to_images():
             for page_num in range(len(doc)):
                 page = doc[page_num]
 
-                # ⚡ Force render toàn bộ DisplayList của trang (không giới hạn clip, crop, rect)
-                display_list = page.get_displaylist()
-                mat = fitz.Matrix(2, 2)  # ~200 DPI
-                pix = display_list.get_pixmap(matrix=mat, alpha=False, clip=None)
+                # ⚡ Ép dùng MediaBox thật (toàn bộ vùng trang)
+                page.set_cropbox(page.mediabox)
+
+                # ⚡ Render toàn trang, không giới hạn clip, lấy cả phần ngoài DisplayList
+                zoom = 2.0  # ~200 DPI
+                matrix = fitz.Matrix(zoom, zoom)
+                pix = page.get_pixmap(matrix=matrix, alpha=False, clip=None)
 
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
