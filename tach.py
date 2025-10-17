@@ -18,42 +18,47 @@ def get_direct_drive_link(url: str):
 @app.route("/pdf-to-images", methods=["POST"])
 def pdf_to_images():
     try:
-        data = request.get_json()
-        if not data or "url" not in data:
-            return jsonify({"error": "Thiếu 'url' trong request body"}), 400
+        pdf_bytes = None
 
-        drive_url = data["url"]
-        direct_link = get_direct_drive_link(drive_url)
-        if not direct_link:
-            return jsonify({"error": "URL Google Drive không hợp lệ"}), 400
+        # 🟢 Trường hợp 1: Nhận file binary trực tiếp (multipart/form-data)
+        if "file" in request.files:
+            file = request.files["file"]
+            pdf_bytes = io.BytesIO(file.read())
 
-        # 🟢 Tải file PDF
-        response = requests.get(direct_link)
-        if response.status_code != 200:
-            return jsonify({"error": "Không thể tải file PDF"}), 400
+        # 🟠 Trường hợp 2: Nhận JSON có 'url'
+        elif request.is_json:
+            data = request.get_json()
+            drive_url = data.get("url")
+            if not drive_url:
+                return jsonify({"error": "Thiếu 'url' hoặc 'file' trong request"}), 400
+            direct_link = get_direct_drive_link(drive_url)
+            if not direct_link:
+                return jsonify({"error": "URL Google Drive không hợp lệ"}), 400
 
-        pdf_bytes = io.BytesIO(response.content)
+            response = requests.get(direct_link)
+            if response.status_code != 200:
+                return jsonify({"error": "Không thể tải file PDF"}), 400
+            pdf_bytes = io.BytesIO(response.content)
+
+        else:
+            return jsonify({"error": "Không có file hoặc url"}), 400
+
+        # 🔍 Đọc PDF bằng PyMuPDF
         doc = fitz.open(stream=pdf_bytes, filetype="pdf")
 
+        # 📦 Tạo file zip chứa ảnh từng trang
         zip_buffer = io.BytesIO()
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             for page_num in range(len(doc)):
                 page = doc[page_num]
-
-                # ⚡ Ép dùng MediaBox thật (toàn bộ vùng trang)
                 page.set_cropbox(page.mediabox)
-
-                # ⚡ Render toàn trang, không giới hạn clip, lấy cả phần ngoài DisplayList
-                zoom = 2.0  # ~200 DPI
-                matrix = fitz.Matrix(zoom, zoom)
-                pix = page.get_pixmap(matrix=matrix, alpha=False, clip=None)
-
+                pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
 
         doc.close()
-
         zip_buffer.seek(0)
+
         return send_file(
             zip_buffer,
             as_attachment=True,
