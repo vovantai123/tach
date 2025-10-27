@@ -51,16 +51,19 @@ def pdf_to_images():
         with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zipf:
             for page_num in range(len(doc)):
                 page = doc[page_num]
-
-                # 🚀 Dùng ma trận scale chuẩn DPI=300 (rõ nét thật)
+            
+                # 🚀 Scale chuẩn 300 DPI thật
                 matrix = fitz.Matrix(300 / 72, 300 / 72)
                 pix = page.get_pixmap(matrix=matrix, alpha=False)
-
-                # 🔄 Chuyển sang JPEG (nét và nhẹ hơn PNG)
-                img_bytes = pix.tobytes("jpeg", quality=95)
-
-                # 🧾 Ghi vào file ZIP
+            
+                # 🔄 Ghi JPEG chất lượng cao vào RAM
+                img_buffer = io.BytesIO()
+                pix.save(img_buffer, format="jpeg", quality=95)
+                img_bytes = img_buffer.getvalue()
+            
+                # 🧾 Nén vào ZIP
                 zipf.writestr(f"page_{page_num + 1}.jpg", img_bytes)
+
 
         doc.close()
         zip_buffer.seek(0)
