@@ -52,7 +52,7 @@ def pdf_to_images():
             for page_num in range(len(doc)):
                 page = doc[page_num]
                 page.set_cropbox(page.mediabox)
-                pix = page.get_pixmap(matrix=fitz.Matrix(2.0, 2.0), alpha=False)
+                pix = page.get_pixmap(dpi=300)
                 img_bytes = pix.tobytes("png")
                 zipf.writestr(f"page_{page_num + 1}.png", img_bytes)
 
