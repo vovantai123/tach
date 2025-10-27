@@ -58,7 +58,7 @@ def pdf_to_images():
             
                 # 🔄 Ghi JPEG chất lượng cao vào RAM
                 img_buffer = io.BytesIO()
-                pix.save(img_buffer, format="jpeg", quality=95)
+                pix.save(img_buffer, "jpeg")
                 img_bytes = img_buffer.getvalue()
             
                 # 🧾 Nén vào ZIP
